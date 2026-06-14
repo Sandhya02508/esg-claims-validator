@@ -2,7 +2,7 @@ import os
 import pandas as pd
 import streamlit as st
 import plotly.express as px
-import requests
+import pickle  # <-- Added to load model directly
 
 # Set up page configurations
 st.set_page_config(page_title="ESG Claims Verification Hub", page_icon="🌿", layout="wide")
@@ -35,9 +35,34 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# Helper Function: Server ke bina direct model prediction karne ke liye
+def predict_risk_locally(year, percentage, red_flags):
+    model_path = "data/models/credibility_classifier.pkl"
+    encoder_path = "data/models/label_encoder.pkl"
+    
+    if os.path.exists(model_path) and os.path.exists(encoder_path):
+        with open(model_path, 'rb') as m_file:
+            model = pickle.load(m_file)
+        with open(encoder_path, 'rb') as e_file:
+            le = pickle.load(e_file)
+            
+        # Creating dummy feature row matching your XGBoost input shape
+        # Adjust these columns based on your exact training features if needed
+        input_data = pd.DataFrame([{
+            "extracted_target_year": year,
+            "numeric_target_percentage": percentage,
+            "has_red_flags": red_flags
+        }])
+        
+        pred_encoded = model.predict(input_data)[0]
+        pred_status = le.inverse_transform([pred_encoded])[0]
+        return pred_status
+    else:
+        return "Caution" # Fallback if models aren't found
+
 # --- SIDEBAR: LIVE ML SIMULATION SANDBOX ---
 st.sidebar.markdown("<h2 style='color: #1e3a2f;'>🤖 Live ML Risk Sandbox</h2>", unsafe_allow_html=True)
-st.sidebar.markdown("Simulate a new corporate statement to query your active FastAPI backend model server.")
+st.sidebar.markdown("Simulate a new corporate statement directly using the embedded XGBoost model.")
 
 sandbox_text = st.sidebar.text_area("Corporate Claim Text Statement:", 
                                    value="We will slash overall net emissions by 80% by the year 2040.")
@@ -50,37 +75,23 @@ flag_value = 1 if sandbox_flag == "Yes" else 0
 if st.sidebar.button("🔮 Run Live Risk Prediction"):
     st.sidebar.markdown("---")
     try:
-        # Hit your running FastAPI application endpoint
-        api_url = "http://127.0.0.1:8000/predict"
-        payload = {
-            "extracted_target_year": int(sandbox_year),
-            "numeric_target_percentage": int(sandbox_pct),
-            "has_red_flags": flag_value,
-            "claim_text": sandbox_text
-        }
+        # FastAPI url hit karne ke bajay hum direct function call kar rahe hain
+        risk_status = predict_risk_locally(int(sandbox_year), int(sandbox_pct), flag_value)
         
-        response = requests.post(api_url, json=payload, timeout=5)
+        # Map visual color cues based on output
+        badge_color = "badge-green" if risk_status == "Greenvalidated" else "badge-yellow" if risk_status == "Caution" else "badge-red"
         
-        if response.status_code == 200:
-            result = response.json()
-            risk_status = result.get("predicted_risk_status", "Unknown")
-            
-            # Map visual color cues based on output
-            badge_color = "badge-green" if risk_status == "Greenvalidated" else "badge-yellow" if risk_status == "Caution" else "badge-red"
-            
-            st.sidebar.success("🎉 API Response Received!")
-            st.sidebar.markdown(f"""
-                <div style="background-color: #ffffff; padding: 15px; border-radius: 8px; border: 1px solid #ddd; text-align: center;">
-                    <p style="margin: 0; font-size: 12px; color: #7f8c8d; text-transform: uppercase; font-weight: bold;">XGBoost Classification</p>
-                    <h3 style="margin: 5px 0 10px 0; color: #2c3e50;">Risk Result</h3>
-                    <span class="status-badge {badge_color}">{risk_status}</span>
-                </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.sidebar.error(f"❌ API Error Code: {response.status_code}")
+        st.sidebar.success("🎉 Prediction Completed Successfully!")
+        st.sidebar.markdown(f"""
+            <div style="background-color: #ffffff; padding: 15px; border-radius: 8px; border: 1px solid #ddd; text-align: center;">
+                <p style="margin: 0; font-size: 12px; color: #7f8c8d; text-transform: uppercase; font-weight: bold;">Embedded XGBoost Model</p>
+                <h3 style="margin: 5px 0 10px 0; color: #2c3e50;">Risk Result</h3>
+                <span class="status-badge {badge_color}">{risk_status}</span>
+            </div>
+        """, unsafe_allow_html=True)
             
     except Exception as e:
-        st.sidebar.error("❌ Connection Failed! Ensure your FastAPI server (`uvicorn api.app:app --reload`) is still running in your other terminal panel.")
+        st.sidebar.error(f"❌ Prediction Failed: {str(e)}")
 
 
 # --- MAIN HEADER SECTION ---
