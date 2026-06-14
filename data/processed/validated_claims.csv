@@ -1,0 +1,6 @@
+company_name,sector,claim_text,claim_category,year,extracted_target_year,numeric_target_percentage,has_red_flags,claim_length,recorded_emissions_co2e,baseline_emissions_co2e,renewable_energy_mwh,total_energy_mwh,credibility_score,validation_status
+Microsoft,Technology,We pledge to be completely carbon neutral by 2030 across all operations.,carbon,2023,2030,100,0,72,11500.0,25000.0,85000,100000,95,Greenvalidated
+Apple,Technology,Using 100% renewable energy in all our data centers and corporate facilities.,renewable,2023,2030,100,0,77,7200.0,20000.0,95000,100000,95,Greenvalidated
+Tesla,Automotive,Our electric vehicles will reduce aggregate global emissions by 50% this decade.,carbon,2024,2030,50,1,80,,,40000,50000,55,Caution
+ExxonMobil,Energy,Investing in advanced carbon capture technology to reach net-zero by 2050.,net_zero,2023,2050,100,1,74,480000.0,490000.0,5000,500000,35,RedFlag
+Walmart,Retail,Targeting zero waste to landfills and 100% recyclable packaging by 2035.,waste,2024,2035,100,0,72,,,30000,200000,80,Greenvalidated
