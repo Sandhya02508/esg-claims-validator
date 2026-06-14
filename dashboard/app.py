@@ -51,7 +51,7 @@ if st.sidebar.button("🔮 Run Live Risk Prediction"):
     st.sidebar.markdown("---")
     try:
         # Hit your running FastAPI application endpoint
-        api_url = "http://127.0.0.1:8000/validate"
+        api_url = "http://127.0.0.1:8000/predict"
         payload = {
             "extracted_target_year": int(sandbox_year),
             "numeric_target_percentage": int(sandbox_pct),
