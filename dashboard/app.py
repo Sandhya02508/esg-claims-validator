@@ -2,7 +2,7 @@ import os
 import pandas as pd
 import streamlit as st
 import plotly.express as px
-import pickle  # <-- Added to load model directly
+import pickle
 
 # Set up page configurations
 st.set_page_config(page_title="ESG Claims Verification Hub", page_icon="🌿", layout="wide")
@@ -35,8 +35,8 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Helper Function: Server ke bina direct model prediction karne ke liye
-def predict_risk_locally(year, percentage, red_flags):
+# Helper Function: Embedded XGBoost model prediction with all 4 features
+def predict_risk_locally(year, percentage, red_flags, claim_text):
     model_path = "data/models/credibility_classifier.pkl"
     encoder_path = "data/models/label_encoder.pkl"
     
@@ -46,19 +46,25 @@ def predict_risk_locally(year, percentage, red_flags):
         with open(encoder_path, 'rb') as e_file:
             le = pickle.load(e_file)
             
-        # Creating dummy feature row matching your XGBoost input shape
-        # Adjust these columns based on your exact training features if needed
+        # Calculating claim_length to fix the feature_names mismatch error
+        claim_length = len(claim_text)
+            
+        # Input DataFrame with all 4 features expected by XGBoost
         input_data = pd.DataFrame([{
             "extracted_target_year": year,
             "numeric_target_percentage": percentage,
-            "has_red_flags": red_flags
+            "has_red_flags": red_flags,
+            "claim_length": claim_length
         }])
+        
+        # Explicitly ordering columns to match exact training sequence
+        input_data = input_data[['extracted_target_year', 'numeric_target_percentage', 'has_red_flags', 'claim_length']]
         
         pred_encoded = model.predict(input_data)[0]
         pred_status = le.inverse_transform([pred_encoded])[0]
         return pred_status
     else:
-        return "Caution" # Fallback if models aren't found
+        return "Caution"
 
 # --- SIDEBAR: LIVE ML SIMULATION SANDBOX ---
 st.sidebar.markdown("<h2 style='color: #1e3a2f;'>🤖 Live ML Risk Sandbox</h2>", unsafe_allow_html=True)
@@ -75,8 +81,8 @@ flag_value = 1 if sandbox_flag == "Yes" else 0
 if st.sidebar.button("🔮 Run Live Risk Prediction"):
     st.sidebar.markdown("---")
     try:
-        # FastAPI url hit karne ke bajay hum direct function call kar rahe hain
-        risk_status = predict_risk_locally(int(sandbox_year), int(sandbox_pct), flag_value)
+        # Calling local prediction function with sandbox_text included
+        risk_status = predict_risk_locally(int(sandbox_year), int(sandbox_pct), flag_value, sandbox_text)
         
         # Map visual color cues based on output
         badge_color = "badge-green" if risk_status == "Greenvalidated" else "badge-yellow" if risk_status == "Caution" else "badge-red"
